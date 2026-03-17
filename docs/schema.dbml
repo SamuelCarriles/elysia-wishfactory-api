@@ -1,0 +1,206 @@
+Table users {
+    id uuid [pk, default: `gen_random_uuid()`]
+    google_id text [unique, not null, note: 'User ID registered in the Google database.']
+    fullname text [not null]
+    username text [unique, not null]
+    email text [unique, not null]
+    description text
+    picture text
+    is_verified boolean [not null, default: false]
+    followers_count integer [not null, default: 0]
+    following_count integer [not null, default: 0]
+    available_votes integer [not null, default: 0]
+    votes_cast_count integer [not null, default: 0]
+    votes_received_count integer [not null, default: 0]
+    registered_at timestamp [not null, default: `now()`]
+    last_login_at timestamp [not null, default: `now()`]
+
+    indexes {
+        fullname
+        username
+    }
+}
+
+Table publish_states {
+    id uuid [pk, default: `gen_random_uuid()`]
+    code text [unique, not null, note: 'Publication states: draft, ready-to-review, in-review, denied, published.']
+    display text [unique, not null]
+    description text [not null]
+}
+
+// Eng: Categories are defined by the platform, unlike tags, which are created by the users.
+// Spa: Las categorías son definidas por la plataforma, a diferencia de los tags que son creados por los usuarios
+Table categories {
+    id uuid [pk, default: `gen_random_uuid()`]
+    code text [unique, not null]
+    display text [unique, not null]
+    description text
+}
+
+// Eng: Values in the 'tags' table must always be lowercase strings with no spaces (use hyphens to separate words).
+// Spa: El value en la tabla tags siempre debe ser un string sin espacios (para separar palabras se debe utilizar el guión corto) y con todas sus letras en minúscula
+Table tags {
+    id uuid [pk, default: `gen_random_uuid()`]
+    value text [unique, not null]
+    usage_count integer [not null, default: 0]
+
+    indexes {
+        value
+    }
+}
+
+Table remix_merge_states {
+    id uuid [pk, default: `gen_random_uuid()`]
+    code text [unique, not null, note: 'Merge states: pending, accepted, rejected, in-review, merged.']
+    display text [unique, not null]
+    description text
+}
+
+Table wishes {
+    id uuid [pk, default: `gen_random_uuid()`]
+    owner_id uuid [not null, ref: > users.id]
+    publish_state_id uuid [not null, ref: > publish_states.id]
+    publish_state_reason text
+    votes_count integer [not null, default: 0]
+    remixes_count integer [not null, default: 0]
+    merged_remixes_count integer [not null, default: 0]
+    created_at timestamp [not null, default: `now()`]
+    updated_at timestamp [not null,default: `now()`]
+
+    indexes {
+        owner_id
+        publish_state_id
+    }
+}
+
+Table wish_versions {
+    id uuid [pk, default: `gen_random_uuid()`]
+    wish_id uuid [not null, ref: > wishes.id]
+    version integer [not null]
+    title text [not null]
+    description text [not null]
+    source_remix_id uuid [ref: > remixes.id]
+    created_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (wish_id, version) [unique]
+        source_remix_id
+    }
+}
+
+Table wish_comments {
+    id uuid [pk, default: `gen_random_uuid()`]
+    owner_id uuid [not null, ref: > users.id]
+    wish_id uuid [not null, ref: > wishes.id]
+    parent_comment_id uuid [ref: > wish_comments.id, note: 'A null value indicates a root comment.']
+    content text [not null]
+    created_at timestamp [not null, default: `now()`]
+    updated_at timestamp [not null, default: `now()`]
+
+    indexes {
+        wish_id
+        parent_comment_id
+    }
+}
+
+Table wish_categories {
+    wish_version_id uuid [not null, ref: > wish_versions.id]
+    category_id uuid [not null, ref: > categories.id]
+    added_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (wish_version_id, category_id) [pk]
+    }
+}
+
+Table wish_tags {
+    wish_version_id uuid [not null, ref: > wish_versions.id]
+    tag_id uuid [not null, ref: > tags.id]
+    added_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (wish_version_id, tag_id) [pk]
+    }
+}
+
+Table wish_votes {
+    wish_id uuid [not null, ref: > wishes.id]
+    user_id uuid [not null, ref: > users.id]
+    registered_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (wish_id, user_id) [pk]
+    }
+}
+
+Table remixes {
+    id uuid [pk, default: `gen_random_uuid()`]
+    owner_id uuid [not null, ref: > users.id]
+    wish_id uuid [not null, ref: > wishes.id]
+    title text [not null]
+    description text [not null]
+    votes_count integer [not null, default: 0]
+    merge_state_id uuid [not null, ref: > remix_merge_states.id]
+    publish_state_id uuid [ref: > publish_states.id]
+    created_at timestamp [not null, default: `now()`]
+    updated_at timestamp [not null, default: `now()`]
+
+    indexes {
+        wish_id
+    }
+}
+
+Table remix_comments {
+    id uuid [pk, default: `gen_random_uuid()`]
+    owner_id uuid [not null, ref: > users.id]
+    remix_id uuid [not null, ref: > remixes.id]
+    parent_comment_id uuid [ref: > remix_comments.id, note: 'A null value indicates a root comment.']
+    content text [not null]
+    created_at timestamp [not null, default: `now()`]
+    updated_at timestamp [not null, default: `now()`]
+
+    indexes {
+        remix_id
+        parent_comment_id
+    }
+}
+
+Table remix_categories {
+    remix_id uuid [not null, ref: > remixes.id]
+    category_id uuid [not null, ref: > categories.id]
+    added_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (remix_id, category_id) [pk]
+    }
+}
+
+Table remix_tags {
+    remix_id uuid [not null, ref: > remixes.id]
+    tag_id uuid [not null, ref: > tags.id]
+    added_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (remix_id, tag_id) [pk]
+    }
+}
+
+Table remix_votes {
+    remix_id uuid [not null, ref: > remixes.id]
+    user_id uuid [not null, ref: > users.id]
+    registered_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (remix_id, user_id) [pk]
+    }
+}
+
+Table follows {
+    user_id uuid [not null, ref: > users.id]
+    follower_id uuid [not null, ref: > users.id]
+    followed_at timestamp [not null, default: `now()`]
+
+    indexes {
+        (user_id, follower_id) [pk]
+    }
+}

@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  googleId           String   @unique @map("google_id")
+  fullname           String
+  username           String   @unique
+  email              String   @unique
+  description        String?
+  picture            String?
+  isVerified         Boolean  @default(false) @map("is_verified")
+  followersCount     Int      @default(0) @map("followers_count")
+  followingCount     Int      @default(0) @map("following_count")
+  availableVotes     Int      @default(0) @map("available_votes")
+  votesCastCount     Int      @default(0) @map("votes_cast_count")
+  votesReceivedCount Int      @default(0) @map("votes_received_count")
+  registeredAt       DateTime @default(now()) @map("registered_at")
+  lastLoginAt        DateTime @default(now()) @map("last_login_at")
+
+  wishes        Wish[]
+  wishComments  WishComment[]
+  wishVotes     WishVote[]
+  remixes       Remix[]
+  remixComments RemixComment[]
+  remixVotes    RemixVote[]
+  following     Follow[]       @relation("Following")
+  followers     Follow[]       @relation("Follower")
+
+  @@index([fullname])
+  @@index([username])
+  @@map("users")
+}
+
+model PublishState {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String @unique
+  display     String @unique
+  description String
+
+  wishes  Wish[]
+  remixes Remix[]
+
+  @@map("publish_states")
+}
+
+model Category {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String  @unique
+  display     String  @unique
+  description String?
+
+  wishCategories  WishCategory[]
+  remixCategories RemixCategory[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  value      String @unique
+  usageCount Int    @default(0) @map("usage_count")
+
+  wishTags  WishTag[]
+  remixTags RemixTag[]
+
+  @@index([value])
+  @@map("tags")
+}
+
+model RemixMergeState {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String  @unique
+  display     String  @unique
+  description String?
+
+  remixes Remix[]
+
+  @@map("remix_merge_states")
+}
+
+model Wish {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String       @map("owner_id") @db.Uuid
+  owner              User         @relation(fields: [ownerId], references: [id])
+  publishStateId     String       @map("publish_state_id") @db.Uuid
+  publishState       PublishState @relation(fields: [publishStateId], references: [id])
+  publishStateReason String?      @map("publish_state_reason")
+  votesCount         Int          @default(0) @map("votes_count")
+  remixesCount       Int          @default(0) @map("remixes_count")
+  mergedRemixesCount Int          @default(0) @map("merged_remixes_count")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  versions  WishVersion[]
+  comments  WishComment[]
+  wishVotes WishVote[]
+  remixes   Remix[]
+
+  @@index([ownerId])
+  @@index([publishStateId])
+  @@map("wishes")
+}
+
+model WishVersion {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wishId        String   @map("wish_id") @db.Uuid
+  wish          Wish     @relation(fields: [wishId], references: [id])
+  version       Int
+  title         String
+  description   String
+  sourceRemixId String?  @map("source_remix_id") @db.Uuid
+  sourceRemix   Remix?   @relation(fields: [sourceRemixId], references: [id])
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  wishCategories WishCategory[]
+  wishTags       WishTag[]
+
+  @@unique([wishId, version])
+  @@index([sourceRemixId])
+  @@map("wish_versions")
+}
+
+model WishComment {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String       @map("owner_id") @db.Uuid
+  owner           User         @relation(fields: [ownerId], references: [id])
+  wishId          String       @map("wish_id") @db.Uuid
+  wish            Wish         @relation(fields: [wishId], references: [id])
+  parentCommentId String?      @map("parent_comment_id") @db.Uuid
+  parentComment   WishComment? @relation("WishCommentReplies", fields: [parentCommentId], references: [id])
+  content         String
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  replies WishComment[] @relation("WishCommentReplies")
+
+  @@index([wishId])
+  @@index([parentCommentId])
+  @@map("wish_comments")
+}
+
+model WishCategory {
+  wishVersionId String      @map("wish_version_id") @db.Uuid
+  wishVersion   WishVersion @relation(fields: [wishVersionId], references: [id])
+  categoryId    String      @map("category_id") @db.Uuid
+  category      Category    @relation(fields: [categoryId], references: [id])
+  addedAt       DateTime    @default(now()) @map("added_at")
+
+  @@id([wishVersionId, categoryId])
+  @@map("wish_categories")
+}
+
+model WishTag {
+  wishVersionId String      @map("wish_version_id") @db.Uuid
+  wishVersion   WishVersion @relation(fields: [wishVersionId], references: [id])
+  tagId         String      @map("tag_id") @db.Uuid
+  tag           Tag         @relation(fields: [tagId], references: [id])
+  addedAt       DateTime    @default(now()) @map("added_at")
+
+  @@id([wishVersionId, tagId])
+  @@map("wish_tags")
+}
+
+model WishVote {
+  wishId       String   @map("wish_id") @db.Uuid
+  wish         Wish     @relation(fields: [wishId], references: [id])
+  userId       String   @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id])
+  registeredAt DateTime @default(now()) @map("registered_at")
+
+  @@id([wishId, userId])
+  @@map("wish_votes")
+}
+
+model Remix {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId        String          @map("owner_id") @db.Uuid
+  owner          User            @relation(fields: [ownerId], references: [id])
+  wishId         String          @map("wish_id") @db.Uuid
+  wish           Wish            @relation(fields: [wishId], references: [id])
+  title          String
+  description    String
+  votesCount     Int             @default(0) @map("votes_count")
+  mergeStateId   String          @map("merge_state_id") @db.Uuid
+  mergeState     RemixMergeState @relation(fields: [mergeStateId], references: [id])
+  publishStateId String?          @map("publish_state_id") @db.Uuid
+  publishState   PublishState?    @relation(fields: [publishStateId], references: [id])
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  wishVersions    WishVersion[]
+  remixComments   RemixComment[]
+  remixCategories RemixCategory[]
+  remixTags       RemixTag[]
+  remixVotes      RemixVote[]
+
+  @@index([wishId])
+  @@map("remixes")
+}
+
+model RemixComment {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String        @map("owner_id") @db.Uuid
+  owner           User          @relation(fields: [ownerId], references: [id])
+  remixId         String        @map("remix_id") @db.Uuid
+  remix           Remix         @relation(fields: [remixId], references: [id])
+  parentCommentId String?       @map("parent_comment_id") @db.Uuid
+  parentComment   RemixComment? @relation("RemixCommentReplies", fields: [parentCommentId], references: [id])
+  content         String
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  replies RemixComment[] @relation("RemixCommentReplies")
+
+  @@index([remixId])
+  @@index([parentCommentId])
+  @@map("remix_comments")
+}
+
+model RemixCategory {
+  remixId    String   @map("remix_id") @db.Uuid
+  remix      Remix    @relation(fields: [remixId], references: [id])
+  categoryId String   @map("category_id") @db.Uuid
+  category   Category @relation(fields: [categoryId], references: [id])
+  addedAt    DateTime @default(now()) @map("added_at")
+
+  @@id([remixId, categoryId])
+  @@map("remix_categories")
+}
+
+model RemixTag {
+  remixId String   @map("remix_id") @db.Uuid
+  remix   Remix    @relation(fields: [remixId], references: [id])
+  tagId   String   @map("tag_id") @db.Uuid
+  tag     Tag      @relation(fields: [tagId], references: [id])
+  addedAt DateTime @default(now()) @map("added_at")
+
+  @@id([remixId, tagId])
+  @@map("remix_tags")
+}
+
+model RemixVote {
+  remixId      String   @map("remix_id") @db.Uuid
+  remix        Remix    @relation(fields: [remixId], references: [id])
+  userId       String   @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id])
+  registeredAt DateTime @default(now()) @map("registered_at")
+
+  @@id([remixId, userId])
+  @@map("remix_votes")
+}
+
+model Follow {
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation("Following", fields: [userId], references: [id])
+  followerId String   @map("follower_id") @db.Uuid
+  follower   User     @relation("Follower", fields: [followerId], references: [id])
+  followedAt DateTime @default(now()) @map("followed_at")
+
+  @@id([userId, followerId])
+  @@map("follows")
+}
