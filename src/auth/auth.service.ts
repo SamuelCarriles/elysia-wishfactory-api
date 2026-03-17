@@ -40,7 +40,7 @@ export async function getGoogleUser(accessToken: string) {
 }
 
 function genUserName(email: string) {
-    const domain = email.split("@")[0];
+    const domain = email.split("@")[0]
     return domain.concat(randomId())
 }
 
@@ -60,5 +60,6 @@ export async function findOrCreateUser(googleUser: { id: string, email: string, 
     } else {
         await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
     }
+    
     return user
 }
