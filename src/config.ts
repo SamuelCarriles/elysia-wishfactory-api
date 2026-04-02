@@ -4,11 +4,15 @@ export const config = {
         clientSecret: Bun.env.GOOGLE_CLIENT_SECRET ?? "",
         redirectUri: Bun.env.GOOGLE_REDIRECT_URI ?? "",
     },
-    jwtSecret: {value: Bun.env.JWT_SECRET ?? "wqpjqjdndoedieffh13943uu9ugwn32n9fivw49jUYOhljt0399fj42hUh230few42rr9uzi",
+    jwtSecret: {value: Bun.env.JWT_SECRET ?? "",
                 expires: Bun.env.JWT_SECRET_EXPIRES ?? "7d"
     } 
 }
 
 if (!config.google.clientId){
     throw new Error("MISSING GOOGLE_CLIENT_ID in .env")
+}
+
+if(!config.jwtSecret.value) {
+    throw new Error("MISSING JWT_SECRET in .env")
 }
