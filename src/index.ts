@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
-
+import { authRoutes } from "./auth/auth.routes";
 const app = new Elysia()
-.get("/", () => "Hello Elysia")
+.use(authRoutes)
 .listen(3000);
 
 console.log(
